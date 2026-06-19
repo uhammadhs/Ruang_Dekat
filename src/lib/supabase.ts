@@ -4,17 +4,14 @@ import { getEnv } from "@/lib/utils";
 let browserClient: SupabaseClient | null = null;
 
 export function isSupabaseConfigured() {
-  // Gunakan static access agar Turbopack bisa inline di client bundle
-  return Boolean(
-    (typeof process !== "undefined" ? process.env?.NEXT_PUBLIC_SUPABASE_URL : null) &&
-    (typeof process !== "undefined" ? process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY : null)
-  );
+  // Static access agar Turbopack inline nilai NEXT_PUBLIC_* saat build
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
 export function getSupabaseBrowserClient() {
-  // Static access — Turbopack inline nilai NEXT_PUBLIC_* saat build
-  const url = typeof process !== "undefined" ? process.env?.NEXT_PUBLIC_SUPABASE_URL : undefined;
-  const anonKey = typeof process !== "undefined" ? process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY : undefined;
+  // Static access — Turbopack ganti dengan literal string saat build
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
     throw new Error(
