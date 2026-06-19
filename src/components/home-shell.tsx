@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MapPin, Search, Sparkles } from "lucide-react";
+import { MapPin, Search } from "lucide-react";
 import { FeedCard } from "@/components/feed-card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -28,33 +28,11 @@ export function HomeShell({
   const { user } = useSession();
   const uid = user?.id || serverUserId;
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["value"]>("all");
-  const [idea, setIdea] = useState("");
-  const [aiOutput, setAiOutput] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const filteredPosts = useMemo(() => {
     if (activeTab === "all") return initialPosts;
     return initialPosts.filter((post) => post.type === activeTab);
   }, [activeTab, initialPosts]);
-
-  async function generateCaption() {
-    if (!idea.trim()) return;
-    setIsGenerating(true);
-    setAiOutput("");
-    try {
-      const res = await fetch("/api/ai/assist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "caption", input: idea }),
-      });
-      const data = await res.json();
-      setAiOutput(data.ok ? data.output || "" : data.error || "AI belum aktif.");
-    } catch {
-      setAiOutput("AI belum aktif.");
-    } finally {
-      setIsGenerating(false);
-    }
-  }
 
   return (
     <main className="min-w-0 flex-1 space-y-4 pb-28 lg:pb-10">
@@ -86,34 +64,6 @@ export function HomeShell({
         </div>
       </div>
 
-      {user && (
-        <Card>
-          <div className="flex items-center gap-2">
-            <Sparkles className="size-5 text-blue-600" />
-            <div>
-              <h2 className="font-black text-slate-950">AI Caption Assistant</h2>
-              <p className="text-xs text-slate-500">Pakai Gemini 2.5 Flash.</p>
-            </div>
-          </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
-            <textarea
-              value={idea}
-              onChange={(e) => setIdea(e.target.value)}
-              className="focus-ring min-h-24 rounded-3xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700 outline-none"
-              placeholder="Tulis ide posting..."
-            />
-            <Button onClick={generateCaption} disabled={isGenerating || !idea.trim()} className="md:self-end">
-              {isGenerating ? "Membuat..." : "Buat Caption"}
-            </Button>
-          </div>
-          {aiOutput && (
-            <div className="mt-3 rounded-3xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
-              {aiOutput}
-            </div>
-          )}
-        </Card>
-      )}
-
       <div className="no-scrollbar flex gap-2 overflow-x-auto py-1">
         {tabs.map((tab) => (
           <button
@@ -132,12 +82,17 @@ export function HomeShell({
       </div>
 
       {filteredPosts.length === 0 ? (
-        <Card>
-          <p className="text-center text-sm text-slate-500">
+        <Card className="text-center">
+          <p className="text-sm text-slate-500">
             {activeTab === "all"
               ? "Belum ada posting. Jadilah yang pertama!"
               : `Belum ada posting dengan kategori ${activeTab}.`}
           </p>
+          {user && (
+            <Link href="/create" className="mt-4 inline-block">
+              <Button variant="secondary">Buat Posting</Button>
+            </Link>
+          )}
         </Card>
       ) : (
         <div className="space-y-4">

@@ -33,8 +33,9 @@ export default async function CommunitiesPage() {
           </div>
 
           {communities.length === 0 ? (
-            <Card>
-              <p className="text-center text-sm text-slate-500">Belum ada komunitas. Jadilah yang pertama membuat!</p>
+            <Card className="text-center">
+              <p className="text-sm text-slate-500">Belum ada komunitas. Jadilah yang pertama membuat!</p>
+              <Link href="/community/new" className="mt-4 inline-block"><Button variant="secondary">Buat Komunitas</Button></Link>
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">

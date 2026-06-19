@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Bot, Flag, ShieldCheck, TrendingUp, UsersRound, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { Bot, Flag, ShieldCheck, TrendingUp, UsersRound, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import type { Report } from "@/lib/types";
+import { useSession } from "@/components/session-provider";
 
 export function AdminContent({
   stats,
@@ -16,55 +17,76 @@ export function AdminContent({
   reports: Report[];
 }) {
   const router = useRouter();
+  const { user } = useSession();
   const [reports, setReports] = useState(initialReports);
   const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   async function handleResolve(reportId: string) {
     setLoading(reportId);
-    const supabase = getSupabaseBrowserClient();
-    await supabase.from("reports").update({ status: "resolved", resolved_at: new Date().toISOString() }).eq("id", reportId);
+    setError("");
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error: err } = await supabase.from("reports").update({ status: "resolved", resolved_at: new Date().toISOString() }).eq("id", reportId);
+      if (err) throw err;
 
-    await supabase.from("moderation_logs").insert({
-      target_type: "report",
-      target_id: reportId,
-      action: "resolve",
-    });
+      await supabase.from("moderation_logs").insert({
+        admin_id: user?.id,
+        target_type: "report",
+        target_id: reportId,
+        action: "resolve",
+      });
 
-    setReports((prev) => prev.filter((r) => r.id !== reportId));
+      setReports((prev) => prev.filter((r) => r.id !== reportId));
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal menyelesaikan laporan");
+    }
     setLoading(null);
-    router.refresh();
   }
 
   async function handleHidePost(postId: string | null) {
     if (!postId) return;
     setLoading(postId);
-    const supabase = getSupabaseBrowserClient();
-    await supabase.from("posts").update({ is_deleted: true }).eq("id", postId);
+    setError("");
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error: err } = await supabase.from("posts").update({ is_deleted: true }).eq("id", postId);
+      if (err) throw err;
 
-    await supabase.from("moderation_logs").insert({
-      target_type: "post",
-      target_id: postId,
-      action: "hide",
-    });
-
+      await supabase.from("moderation_logs").insert({
+        admin_id: user?.id,
+        target_type: "post",
+        target_id: postId,
+        action: "hide",
+      });
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal menyembunyikan post");
+    }
     setLoading(null);
-    router.refresh();
   }
 
   async function handleRestorePost(postId: string | null) {
     if (!postId) return;
     setLoading(postId);
-    const supabase = getSupabaseBrowserClient();
-    await supabase.from("posts").update({ is_deleted: false }).eq("id", postId);
+    setError("");
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error: err } = await supabase.from("posts").update({ is_deleted: false }).eq("id", postId);
+      if (err) throw err;
 
-    await supabase.from("moderation_logs").insert({
-      target_type: "post",
-      target_id: postId,
-      action: "restore",
-    });
-
+      await supabase.from("moderation_logs").insert({
+        admin_id: user?.id,
+        target_type: "post",
+        target_id: postId,
+        action: "restore",
+      });
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal mengembalikan post");
+    }
     setLoading(null);
-    router.refresh();
   }
 
   const statCards = [
@@ -75,6 +97,10 @@ export function AdminContent({
 
   return (
     <>
+      {error && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-3">
         {statCards.map((stat) => {
           const Icon = stat.icon;

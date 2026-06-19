@@ -8,19 +8,24 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Profile, PostWithDetails, BusinessPage } from "@/lib/types";
-import { Award, BarChart3, BriefcaseBusiness, MapPin, LogOut, Camera, Loader2, UserRound } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
+import { Award, BarChart3, BriefcaseBusiness, MapPin, LogOut, Camera, Loader2, UserRound } from "lucide-react";
 
 export function ProfileContent({
   profile,
   posts,
   businesses,
   isOwn,
+  followerCount = 0,
+  followingCount = 0,
 }: {
   profile: Profile;
   posts: PostWithDetails[];
   businesses: BusinessPage[];
   isOwn?: boolean;
+  followerCount?: number;
+  followingCount?: number;
 }) {
   const { signOut, user } = useSession();
   const router = useRouter();
@@ -82,7 +87,7 @@ export function ProfileContent({
           <div className="relative -mt-16">
             <div className="grid size-24 place-items-center rounded-[2rem] border-4 border-white bg-slate-950 text-2xl font-black text-white shadow-xl overflow-hidden">
               {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt="" className="size-full object-cover" />
+                <Image src={profile.avatar_url} alt={`Avatar ${profile.display_name}`} width={96} height={96} className="size-full object-cover" />
               ) : (
                 initial
               )}
@@ -140,6 +145,10 @@ export function ProfileContent({
                   {profile.bio && (
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">{profile.bio}</p>
                   )}
+                  <div className="mt-3 flex gap-4 text-sm">
+                    <span className="font-bold text-slate-950">{followerCount} <span className="font-medium text-slate-500">pengikut</span></span>
+                    <span className="font-bold text-slate-950">{followingCount} <span className="font-medium text-slate-500">mengikuti</span></span>
+                  </div>
                   {(profile.location_city || profile.location_district) && (
                     <p className="mt-3 flex items-center gap-2 text-sm font-medium text-slate-600">
                       <MapPin className="size-4" />

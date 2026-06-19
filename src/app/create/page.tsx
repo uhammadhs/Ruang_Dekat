@@ -2,6 +2,7 @@
 
 import { useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { BottomNav } from "@/components/bottom-nav";
 import { TopBar } from "@/components/top-bar";
 import { Button } from "@/components/ui/button";
@@ -94,16 +95,20 @@ export default function CreatePage() {
 
     const supabase = getSupabaseBrowserClient();
 
-    // Upload media to Cloudinary first
+    // Upload media to Cloudinary (parallel)
     const uploadedMedia: Array<{ url: string; width: number; height: number }> = [];
-    for (const file of files) {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/media/upload", { method: "POST", body: formData });
-      const data = await res.json();
-      if (data.ok) {
-        uploadedMedia.push(data.media);
-      }
+    if (files.length > 0) {
+      const results = await Promise.all(
+        files.map(async (file) => {
+          const formData = new FormData();
+          formData.append("file", file);
+          const res = await fetch("/api/media/upload", { method: "POST", body: formData });
+          return res.json();
+        })
+      );
+      results.forEach((data) => {
+        if (data.ok) uploadedMedia.push(data.media);
+      });
     }
 
     // Create post
@@ -224,10 +229,11 @@ export default function CreatePage() {
               <div className="flex flex-wrap gap-3">
                 {previews.map((p, i) => (
                   <div key={i} className="relative">
-                    <img src={p} alt="" className="h-24 w-24 rounded-2xl object-cover" />
+                    <Image src={p} alt="Preview unggahan" width={96} height={96} unoptimized className="h-24 w-24 rounded-2xl object-cover" />
                     <button
                       type="button"
                       onClick={() => removeFile(i)}
+                      aria-label="Hapus file"
                       className="absolute -right-2 -top-2 grid size-6 place-items-center rounded-full bg-rose-500 text-white shadow"
                     >
                       <X className="size-3" />

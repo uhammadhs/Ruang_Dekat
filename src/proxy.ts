@@ -5,7 +5,7 @@ const protectedRoutes = ["/create", "/profile", "/admin", "/community/new", "/ev
 const authRoutes = ["/login", "/register", "/forgot-password"];
 const adminRoutes = ["/admin"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const supabase = createServerClient(
@@ -17,10 +17,8 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           cookiesToSet.forEach(({ name, value, options }) => {
-            const response = NextResponse.next();
-            response.cookies.set(name, value, options);
+            request.cookies.set(name, value);
           });
         },
       },
@@ -51,7 +49,7 @@ export async function middleware(request: NextRequest) {
       .from("profiles")
       .select("is_admin")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     if (!profile?.is_admin) {
       return NextResponse.redirect(new URL("/", request.url));

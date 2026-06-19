@@ -25,8 +25,8 @@ export async function uploadToCloudinary(file: File) {
     throw new Error("Hanya file gambar yang diizinkan untuk MVP ini.");
   }
 
-  if (file.size > 5 * 1024 * 1024) {
-    throw new Error("Ukuran gambar maksimal 5MB.");
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error("Ukuran gambar maksimal 10MB.");
   }
 
   const arrayBuffer = await file.arrayBuffer();

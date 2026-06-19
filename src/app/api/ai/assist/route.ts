@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { aiAssistSchema, runGeminiAssist } from "@/lib/gemini";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -12,8 +13,8 @@ export async function POST(request: Request) {
       cookies: {
         getAll() {
           return request.headers.get("cookie")?.split("; ").map(c => {
-            const [name, value] = c.split("=");
-            return { name, value };
+            const idx = c.indexOf("=");
+            return { name: c.slice(0, idx), value: c.slice(idx + 1) };
           }) ?? [];
         },
         setAll() {},
@@ -25,6 +26,12 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ ok: false, error: "Harus login untuk menggunakan AI." }, { status: 401 });
+  }
+
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+  const rl = checkRateLimit(`ai:${user.id}:${ip}`, 20, 60000);
+  if (!rl.allowed) {
+    return NextResponse.json({ ok: false, error: "Terlalu banyak permintaan AI. Coba lagi nanti." }, { status: 429 });
   }
 
   try {

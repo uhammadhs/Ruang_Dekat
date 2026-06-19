@@ -8,7 +8,7 @@ export async function getProfile(client: SupabaseClient, userId: string) {
     .from("profiles")
     .select("*")
     .eq("id", userId)
-    .single();
+    .maybeSingle();
   return data;
 }
 
@@ -17,7 +17,7 @@ export async function getProfileByUsername(client: SupabaseClient, username: str
     .from("profiles")
     .select("*")
     .eq("username", username)
-    .single();
+    .maybeSingle();
   return data;
 }
 
@@ -27,7 +27,7 @@ export async function updateProfile(client: SupabaseClient, userId: string, upda
     .update(updates)
     .eq("id", userId)
     .select()
-    .single();
+    .maybeSingle();
   return data;
 }
 
@@ -37,12 +37,14 @@ export async function getFeedPosts(
   client: SupabaseClient,
   options: {
     userId?: string;
+    filterByUserId?: string;
+    communityId?: string;
     type?: string;
     limit?: number;
     offset?: number;
   } = {}
 ) {
-  const { userId, type, limit = 10, offset = 0 } = options;
+  const { userId, filterByUserId, communityId, type, limit = 10, offset = 0 } = options;
 
   let query = client
     .from("posts")
@@ -62,8 +64,34 @@ export async function getFeedPosts(
     query = query.eq("type", type);
   }
 
+  if (filterByUserId) {
+    query = query.eq("user_id", filterByUserId);
+  }
+
+  if (communityId) {
+    query = query.eq("community_id", communityId);
+  }
+
   const { data } = await query;
-  return (data || []) as unknown as PostWithDetails[];
+  const posts = (data || []) as unknown as PostWithDetails[];
+
+  if (userId) {
+    const postIds = posts.map((p) => p.id);
+    if (postIds.length > 0) {
+      const [likes, saves] = await Promise.all([
+        client.from("post_likes").select("post_id").in("post_id", postIds).eq("user_id", userId),
+        client.from("post_saves").select("post_id").in("post_id", postIds).eq("user_id", userId),
+      ]);
+      const likedSet = new Set(likes.data?.map((l) => l.post_id));
+      const savedSet = new Set(saves.data?.map((s) => s.post_id));
+      for (const post of posts) {
+        post.is_liked = likedSet.has(post.id);
+        post.is_saved = savedSet.has(post.id);
+      }
+    }
+  }
+
+  return posts;
 }
 
 export async function getPostById(client: SupabaseClient, postId: string, userId?: string) {
@@ -79,7 +107,7 @@ export async function getPostById(client: SupabaseClient, postId: string, userId
     `)
     .eq("id", postId)
     .eq("is_deleted", false)
-    .single();
+    .maybeSingle();
 
   if (!data) return null;
 
@@ -112,7 +140,7 @@ export async function createPost(
     ai_assisted?: boolean;
   }
 ) {
-  const { data } = await client.from("posts").insert(post).select().single();
+  const { data } = await client.from("posts").insert(post).select().maybeSingle();
   return data;
 }
 
@@ -170,7 +198,7 @@ export async function createComment(
   client: SupabaseClient,
   comment: { post_id: string; user_id: string; content: string; parent_id?: string }
 ) {
-  const { data } = await client.from("comments").insert(comment).select().single();
+  const { data } = await client.from("comments").insert(comment).select().maybeSingle();
   return data;
 }
 
@@ -200,7 +228,7 @@ export async function getCommunityBySlug(client: SupabaseClient, slug: string) {
     .from("communities")
     .select("*")
     .eq("slug", slug)
-    .single();
+    .maybeSingle();
 
   return data;
 }
@@ -209,7 +237,7 @@ export async function createCommunity(
   client: SupabaseClient,
   community: { owner_id: string; name: string; slug: string; description?: string; category: string; location_city?: string; location_district?: string }
 ) {
-  const { data } = await client.from("communities").insert(community).select().single();
+  const { data } = await client.from("communities").insert(community).select().maybeSingle();
   return data;
 }
 
@@ -271,7 +299,7 @@ export async function getEventById(client: SupabaseClient, eventId: string, user
       host:profiles!host_id(id, username, display_name, avatar_url)
     `)
     .eq("id", eventId)
-    .single();
+    .maybeSingle();
 
   if (!data) return null;
 
@@ -304,7 +332,7 @@ export async function createEvent(
     community_id?: string;
   }
 ) {
-  const { data } = await client.from("events").insert(event).select().single();
+  const { data } = await client.from("events").insert(event).select().maybeSingle();
   return data;
 }
 
@@ -371,7 +399,7 @@ export async function createReport(
     reason: string;
   }
 ) {
-  const { data } = await client.from("reports").insert(report).select().single();
+  const { data } = await client.from("reports").insert(report).select().maybeSingle();
   return data;
 }
 
@@ -390,7 +418,7 @@ export async function updateReportStatus(client: SupabaseClient, reportId: strin
     .update({ status, resolved_at: status === "resolved" ? new Date().toISOString() : undefined })
     .eq("id", reportId)
     .select()
-    .single();
+    .maybeSingle();
 
   return data;
 }

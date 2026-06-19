@@ -1,0 +1,7 @@
+User-Agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /auth/
+
+Sitemap: https://ruangdekat.vercel.app/sitemap.xml

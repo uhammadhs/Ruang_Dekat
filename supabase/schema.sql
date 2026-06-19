@@ -172,8 +172,6 @@ create table if not exists public.moderation_logs (
   created_at timestamptz not null default now()
 );
 
--- Missing tables: badge system, trust score, notifications, business pages, portfolios
-
 create table if not exists public.badges (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
@@ -271,6 +269,19 @@ create index if not exists idx_notifications_user on public.notifications(user_i
 create index if not exists idx_business_slug on public.business_pages(slug);
 create index if not exists idx_posts_user_id on public.posts(user_id, created_at desc);
 create index if not exists idx_posts_community on public.posts(community_id, created_at desc);
+create index if not exists idx_community_members_community on public.community_members(community_id, user_id);
+create index if not exists idx_community_members_user on public.community_members(user_id);
+create index if not exists idx_event_attendees_event on public.event_attendees(event_id, user_id);
+create index if not exists idx_event_attendees_user on public.event_attendees(user_id);
+create index if not exists idx_reports_status on public.reports(status, created_at desc);
+create index if not exists idx_reports_reporter on public.reports(reporter_id);
+create index if not exists idx_post_media_post on public.post_media(post_id);
+create index if not exists idx_ai_logs_user on public.ai_logs(user_id, created_at desc);
+create index if not exists idx_moderation_logs_target on public.moderation_logs(target_type, target_id);
+create index if not exists idx_user_badges_user on public.user_badges(user_id);
+create index if not exists idx_trust_score_log_user on public.trust_score_log(user_id, created_at desc);
+create index if not exists idx_services_business on public.services(business_id);
+create index if not exists idx_portfolios_user on public.portfolios(user_id);
 
 create or replace function public.touch_updated_at()
 returns trigger
@@ -376,6 +387,30 @@ begin
 end;
 $$;
 
+-- Helper: increment event attendee count
+create or replace function public.increment_event_attendee_count(event_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.events set attendee_count = attendee_count + 1 where id = event_id;
+end;
+$$;
+
+-- Helper: decrement event attendee count
+create or replace function public.decrement_event_attendee_count(event_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.events set attendee_count = greatest(attendee_count - 1, 0) where id = event_id;
+end;
+$$;
+
 create or replace function public.is_community_member(target_community_id uuid)
 returns boolean
 language sql
@@ -447,20 +482,25 @@ create policy "authenticated can comment" on public.comments for insert with che
 create policy "owners admins update comments" on public.comments for update using (auth.uid() = user_id or public.is_admin()) with check (auth.uid() = user_id or public.is_admin());
 
 create policy "likes readable" on public.post_likes for select using (true);
-create policy "users manage own likes" on public.post_likes for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "users insert own likes" on public.post_likes for insert with check (auth.uid() = user_id);
+create policy "users delete own likes" on public.post_likes for delete using (auth.uid() = user_id);
 
 create policy "saves own readable" on public.post_saves for select using (auth.uid() = user_id);
-create policy "users manage own saves" on public.post_saves for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "users insert own saves" on public.post_saves for insert with check (auth.uid() = user_id);
+create policy "users delete own saves" on public.post_saves for delete using (auth.uid() = user_id);
 
 create policy "follows readable" on public.follows for select using (true);
-create policy "users manage own follows" on public.follows for all using (auth.uid() = follower_id) with check (auth.uid() = follower_id);
+create policy "users insert own follows" on public.follows for insert with check (auth.uid() = follower_id);
+create policy "users delete own follows" on public.follows for delete using (auth.uid() = follower_id);
 
 create policy "events readable" on public.events for select using (true);
 create policy "authenticated can create own events" on public.events for insert with check (auth.uid() = host_id);
 create policy "hosts admins update events" on public.events for update using (auth.uid() = host_id or public.is_admin()) with check (auth.uid() = host_id or public.is_admin());
 
 create policy "event attendees readable" on public.event_attendees for select using (true);
-create policy "users manage own attendance" on public.event_attendees for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "users insert own attendance" on public.event_attendees for insert with check (auth.uid() = user_id);
+create policy "users delete own attendance" on public.event_attendees for delete using (auth.uid() = user_id);
+create policy "users update own attendance" on public.event_attendees for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "users create reports" on public.reports for insert with check (auth.uid() = reporter_id);
 create policy "admins read reports" on public.reports for select using (public.is_admin() or reporter_id = auth.uid());

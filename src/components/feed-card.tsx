@@ -2,20 +2,23 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Bookmark, Heart, MapPin, MessageCircle } from "lucide-react";
 import type { PostWithDetails } from "@/lib/types";
 import { Card } from "@/components/ui/card";
-import { formatCompactNumber } from "@/lib/utils";
+import { formatCompactNumber, getPostTypeLabel } from "@/lib/utils";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 export function FeedCard({ post, userId }: { post: PostWithDetails; userId?: string }) {
+  const router = useRouter();
   const [liked, setLiked] = useState(post.is_liked);
   const [saved, setSaved] = useState(post.is_saved);
   const [likesCount, setLikesCount] = useState(post.likes_count);
   const [savesCount, setSavesCount] = useState(post.saves_count);
 
   async function handleLike() {
-    if (!userId) return;
+    if (!userId) { router.push("/login"); return; }
     const supabase = getSupabaseBrowserClient();
     const res = await supabase.rpc("toggle_post_like", { p_post_id: post.id, p_user_id: userId });
     if (!res.error) {
@@ -25,7 +28,7 @@ export function FeedCard({ post, userId }: { post: PostWithDetails; userId?: str
   }
 
   async function handleSave() {
-    if (!userId) return;
+    if (!userId) { router.push("/login"); return; }
     const supabase = getSupabaseBrowserClient();
     const res = await supabase.rpc("toggle_post_save", { p_post_id: post.id, p_user_id: userId });
     if (!res.error) {
@@ -42,7 +45,7 @@ export function FeedCard({ post, userId }: { post: PostWithDetails; userId?: str
         <div className="flex items-start gap-3">
           <Link href={`/profile/${post.author.id}`} className="grid size-12 shrink-0 place-items-center rounded-2xl bg-slate-950 text-sm font-black text-white">
             {post.author.avatar_url ? (
-              <img src={post.author.avatar_url} alt="" className="size-full rounded-2xl object-cover" />
+              <Image src={post.author.avatar_url} alt={`Avatar ${post.author.display_name}`} width={48} height={48} className="size-full rounded-2xl object-cover" />
             ) : (
               authorInitial
             )}
@@ -63,7 +66,7 @@ export function FeedCard({ post, userId }: { post: PostWithDetails; userId?: str
 
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
-            <span>{post.type}</span>
+            <span>{getPostTypeLabel(post.type)}</span>
             {post.community_id && <><span className="h-1 w-1 rounded-full bg-blue-300" /><span>Komunitas</span></>}
           </div>
           <h2 className="text-xl font-black leading-tight tracking-tight text-slate-950">{post.title}</h2>
@@ -80,7 +83,7 @@ export function FeedCard({ post, userId }: { post: PostWithDetails; userId?: str
         {post.media && post.media.length > 0 && (
           <div className="flex gap-3 overflow-x-auto">
             {post.media.map((m) => (
-              <img key={m.id} src={m.url} alt="" className="h-48 w-full max-w-sm rounded-2xl object-cover" />
+              <Image key={m.id} src={m.url} alt="Media post" width={m.width || 800} height={m.height || 600} className="h-48 w-full max-w-sm rounded-2xl object-cover" />
             ))}
           </div>
         )}

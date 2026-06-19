@@ -33,8 +33,9 @@ export default async function EventsPage() {
           </div>
 
           {events.length === 0 ? (
-            <Card>
-              <p className="text-center text-sm text-slate-500">Belum ada event mendatang.</p>
+            <Card className="text-center">
+              <p className="text-sm text-slate-500">Belum ada event mendatang.</p>
+              <Link href="/event/new" className="mt-4 inline-block"><Button variant="secondary">Buat Event</Button></Link>
             </Card>
           ) : (
             <div className="space-y-4">

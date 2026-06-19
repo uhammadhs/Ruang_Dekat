@@ -29,6 +29,18 @@ export function formatDate(dateStr: string) {
   }
 }
 
+const postTypeLabels: Record<string, string> = {
+  local: "Umum",
+  work: "Karya",
+  event: "Event",
+  opportunity: "Peluang",
+  question: "Tanya",
+};
+
+export function getPostTypeLabel(type: string): string {
+  return postTypeLabels[type] || type;
+}
+
 export function formatRelativeTime(dateStr: string) {
   const now = Date.now();
   const then = new Date(dateStr).getTime();

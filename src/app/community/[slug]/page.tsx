@@ -18,7 +18,7 @@ export default async function CommunityDetailPage({ params }: { params: Promise<
   if (!community) notFound();
 
   const isMember = user ? await isCommunityMember(supabase, community.id, user.id) : false;
-  const posts = await getFeedPosts(supabase, { userId: user?.id });
+  const posts = await getFeedPosts(supabase, { userId: user?.id, communityId: community.id });
 
   return (
     <>
@@ -60,7 +60,7 @@ export default async function CommunityDetailPage({ params }: { params: Promise<
         ) : (
           <div className="mt-4 space-y-4">
             <h2 className="font-black text-slate-950">Posting Terbaru</h2>
-            {posts.filter(p => p.community_id === community.id).map((post) => (
+            {posts.map((post) => (
               <Link key={post.id} href={`/post/${post.id}`}>
                 <Card className="transition hover:-translate-y-0.5">
                   <p className="font-black text-slate-950">{post.title}</p>

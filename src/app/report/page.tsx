@@ -11,14 +11,14 @@ import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { Loader2, Flag } from "lucide-react";
 
 const reasons = [
-  "spam",
-  "scam",
-  "hate speech",
-  "harassment",
-  "fake content",
-  "adult content",
-  "violence",
-  "other",
+  { value: "spam", label: "Spam" },
+  { value: "scam", label: "Penipuan" },
+  { value: "hate speech", label: "Ujaran Kebencian" },
+  { value: "harassment", label: "Pelecehan" },
+  { value: "fake content", label: "Konten Palsu" },
+  { value: "adult content", label: "Konten Dewasa" },
+  { value: "violence", label: "Kekerasan" },
+  { value: "other", label: "Lainnya" },
 ];
 
 function ReportForm() {
@@ -100,16 +100,16 @@ function ReportForm() {
               <div className="flex flex-wrap gap-2">
                 {reasons.map((r) => (
                   <button
-                    key={r}
+                    key={r.value}
                     type="button"
-                    onClick={() => { setReason(r); setCustomReason(""); }}
+                    onClick={() => { setReason(r.value); setCustomReason(""); }}
                     className={`rounded-full border px-4 py-1.5 text-xs font-bold transition ${
-                      reason === r
+                      reason === r.value
                         ? "border-amber-600 bg-amber-600 text-white"
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                     }`}
                   >
-                    {r}
+                    {r.label}
                   </button>
                 ))}
               </div>

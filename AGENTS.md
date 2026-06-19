@@ -87,7 +87,7 @@ Mobile-first social community platform for local communities, real work, events,
 - ❌ PWA icons — need proper icon assets
 - ❌ Rate limiting on API endpoints
 - ❌ Dark mode
-- ❌ `@supabase/ssr` middleware uses deprecated `middleware.ts` convention (Next.js 16 prefers `proxy`)
+- ✅ Migrated to `proxy.ts` (Next.js 16 convention)
 
 ### Security Status
 - ✅ Auth check on all API routes

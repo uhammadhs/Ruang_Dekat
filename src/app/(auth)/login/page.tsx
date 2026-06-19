@@ -8,10 +8,16 @@ import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
+function getSafeRedirect(raw: string | null): string {
+  if (!raw || raw.startsWith("http")) return "/";
+  return raw;
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/";
+  const redirect = getSafeRedirect(searchParams.get("redirect"));
+  const registered = searchParams.get("registered") === "true";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,6 +54,12 @@ function LoginForm() {
           <h1 className="mt-4 text-2xl font-black tracking-tight text-slate-950">Masuk</h1>
           <p className="mt-1 text-sm text-slate-500">Masuk untuk terhubung dengan komunitas lokal.</p>
         </div>
+
+        {registered && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+            ✅ Pendaftaran berhasil! Silakan cek email untuk konfirmasi.
+          </div>
+        )}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>

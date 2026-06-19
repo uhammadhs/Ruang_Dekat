@@ -33,7 +33,14 @@ export default function NewCommunityPage() {
     setError("");
     const supabase = getSupabaseBrowserClient();
 
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
+    let slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
+    if (!slug) slug = "komunitas-" + Date.now();
+
+    // Check slug uniqueness
+    const { data: existing } = await supabase.from("communities").select("slug").eq("slug", slug).maybeSingle();
+    if (existing) {
+      slug = slug + "-" + Date.now().toString(36);
+    }
 
     const { data, error: createError } = await supabase.from("communities").insert({
       owner_id: user.id,

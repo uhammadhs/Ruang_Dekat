@@ -9,7 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { PostWithDetails, CommentWithAuthor } from "@/lib/types";
-import { formatCompactNumber, formatDate } from "@/lib/utils";
+import { formatCompactNumber, formatDate, getPostTypeLabel } from "@/lib/utils";
+import Image from "next/image";
 import { Bookmark, Heart, Loader2, MapPin, MessageCircle, Send, Flag } from "lucide-react";
 
 export function PostDetailContent({
@@ -31,42 +32,55 @@ export function PostDetailContent({
   const [comments, setComments] = useState(initialComments);
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+const [error, setError] = useState("");
 
   const authorInitial = post.author.display_name?.[0]?.toUpperCase() || "?";
 
   async function handleLike() {
-    if (!uid) return;
+    if (!uid) { router.push("/login"); return; }
+    setError("");
     const supabase = getSupabaseBrowserClient();
     const res = await supabase.rpc("toggle_post_like", { p_post_id: post.id, p_user_id: uid });
     if (!res.error) {
       setLiked(!liked);
       setLikesCount((c) => (liked ? c - 1 : c + 1));
+    } else {
+      setError(res.error.message);
     }
   }
 
   async function handleSave() {
-    if (!uid) return;
+    if (!uid) { router.push("/login"); return; }
+    setError("");
     const supabase = getSupabaseBrowserClient();
     const res = await supabase.rpc("toggle_post_save", { p_post_id: post.id, p_user_id: uid });
     if (!res.error) {
       setSaved(!saved);
+    } else {
+      setError(res.error.message);
     }
   }
 
   async function handleComment(e: React.FormEvent) {
     e.preventDefault();
-    if (!newComment.trim() || !uid) return;
+    if (!newComment.trim()) return;
+    if (!uid) { router.push("/login"); return; }
     setSubmitting(true);
-    const supabase = getSupabaseBrowserClient();
-    const { data } = await supabase
-      .from("comments")
-      .insert({ post_id: post.id, user_id: uid, content: newComment.trim() })
-      .select("*, author:profiles!user_id(id, username, display_name, avatar_url)")
-      .single();
+    setError("");
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data } = await supabase
+        .from("comments")
+        .insert({ post_id: post.id, user_id: uid, content: newComment.trim() })
+        .select("*, author:profiles!user_id(id, username, display_name, avatar_url)")
+        .maybeSingle();
 
-    if (data) {
-      setComments((prev) => [...prev, data as unknown as CommentWithAuthor]);
-      setNewComment("");
+      if (data) {
+        setComments((prev) => [...prev, data as unknown as CommentWithAuthor]);
+        setNewComment("");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal mengirim komentar");
     }
     setSubmitting(false);
   }
@@ -79,7 +93,7 @@ export function PostDetailContent({
         <div className="flex items-start gap-3">
           <Link href={`/profile/${post.author.id}`} className="grid size-12 shrink-0 place-items-center rounded-2xl bg-slate-950 text-sm font-black text-white">
             {post.author.avatar_url ? (
-              <img src={post.author.avatar_url} alt="" className="size-full rounded-2xl object-cover" />
+              <Image src={post.author.avatar_url} alt={`Avatar ${post.author.display_name}`} width={48} height={48} className="size-full rounded-2xl object-cover" />
             ) : (
               authorInitial
             )}
@@ -98,7 +112,7 @@ export function PostDetailContent({
 
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
-            <span>{post.type}</span>
+            <span>{getPostTypeLabel(post.type)}</span>
             {post.ai_assisted && <Badge tone="blue">Dibantu AI</Badge>}
           </div>
           <h1 className="text-2xl font-black leading-tight tracking-tight text-slate-950">{post.title}</h1>
@@ -115,7 +129,7 @@ export function PostDetailContent({
         {post.media && post.media.length > 0 && (
           <div className="flex gap-3 overflow-x-auto">
             {post.media.map((m) => (
-              <img key={m.id} src={m.url} alt="" className="h-64 w-full max-w-lg rounded-2xl object-cover" />
+              <Image key={m.id} src={m.url} alt="Media post" width={m.width || 800} height={m.height || 600} className="h-64 w-full max-w-lg rounded-2xl object-cover" />
             ))}
           </div>
         )}
@@ -130,6 +144,7 @@ export function PostDetailContent({
         <div className="flex items-center gap-3 border-t border-slate-100 pt-3">
           <button
             onClick={handleLike}
+            aria-label={liked ? "Batal suka" : "Suka"}
             className={`flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold transition hover:bg-rose-50 ${
               liked ? "text-rose-600" : "text-slate-500"
             }`}
@@ -139,6 +154,7 @@ export function PostDetailContent({
           </button>
           <button
             onClick={handleSave}
+            aria-label={saved ? "Batal simpan" : "Simpan"}
             className={`flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold transition hover:bg-amber-50 ${
               saved ? "text-amber-600" : "text-slate-500"
             }`}
@@ -157,6 +173,10 @@ export function PostDetailContent({
         </div>
       </Card>
 
+      {error && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>
+      )}
+
       {/* Comments */}
       <Card>
         <div className="flex items-center gap-2">
@@ -173,7 +193,7 @@ export function PostDetailContent({
               placeholder="Tulis komentar..."
               maxLength={1200}
             />
-            <Button type="submit" disabled={!newComment.trim() || submitting}>
+            <Button type="submit" aria-label="Kirim komentar" disabled={!newComment.trim() || submitting}>
               {submitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             </Button>
           </form>

@@ -19,16 +19,18 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
-  const [posts, businesses] = await Promise.all([
+  const [posts, businesses, { count: followers }, { count: following }] = await Promise.all([
     getFeedPosts(supabase, { userId: user.id }),
     getBusinessPages(supabase, user.id),
+    supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", user.id),
+    supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", user.id),
   ]);
 
   return (
     <>
       <TopBar />
       <main className="mx-auto max-w-4xl px-4 py-5 pb-28 lg:px-6">
-        <ProfileContent profile={profile} posts={posts} businesses={businesses} isOwn />
+        <ProfileContent profile={profile} posts={posts} businesses={businesses} isOwn followerCount={followers ?? 0} followingCount={following ?? 0} />
       </main>
       <BottomNav />
     </>
