@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase-server";
 import { getCommunityBySlug, isCommunityMember, getFeedPosts } from "@/lib/supabase-queries";
 import { BottomNav } from "@/components/bottom-nav";
@@ -7,7 +8,24 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UsersRound, MapPin } from "lucide-react";
 import { CommunityAction } from "./community-action";
+import { FeedCard } from "@/components/feed-card";
 import Link from "next/link";
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const supabase = await createClient();
+  const community = await getCommunityBySlug(supabase, slug);
+  if (!community) return { title: "Komunitas Tidak Ditemukan — RuangDekat" };
+
+  return {
+    title: `Komunitas ${community.name} — RuangDekat`,
+    description: community.description || `Bergabunglah dengan komunitas ${community.name} di RuangDekat.`,
+    openGraph: {
+      title: community.name,
+      description: community.description || `Bergabunglah dengan komunitas ${community.name} di RuangDekat.`,
+    },
+  };
+}
 
 export default async function CommunityDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -61,12 +79,7 @@ export default async function CommunityDetailPage({ params }: { params: Promise<
           <div className="mt-4 space-y-4">
             <h2 className="font-black text-slate-950">Posting Terbaru</h2>
             {posts.map((post) => (
-              <Link key={post.id} href={`/post/${post.id}`}>
-                <Card className="transition hover:-translate-y-0.5">
-                  <p className="font-black text-slate-950">{post.title}</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">{post.content.slice(0, 150)}</p>
-                </Card>
-              </Link>
+              <FeedCard key={post.id} post={post} userId={user?.id} />
             ))}
           </div>
         )}

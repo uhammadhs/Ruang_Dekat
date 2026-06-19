@@ -29,10 +29,11 @@ export function PostDetailContent({
   const [liked, setLiked] = useState(post.is_liked);
   const [saved, setSaved] = useState(post.is_saved);
   const [likesCount, setLikesCount] = useState(post.likes_count);
+  const [savesCount, setSavesCount] = useState(post.saves_count);
   const [comments, setComments] = useState(initialComments);
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
-const [error, setError] = useState("");
+  const [error, setError] = useState("");
 
   const authorInitial = post.author.display_name?.[0]?.toUpperCase() || "?";
 
@@ -56,6 +57,7 @@ const [error, setError] = useState("");
     const res = await supabase.rpc("toggle_post_save", { p_post_id: post.id, p_user_id: uid });
     if (!res.error) {
       setSaved(!saved);
+      setSavesCount((c) => (saved ? c - 1 : c + 1));
     } else {
       setError(res.error.message);
     }
@@ -160,7 +162,7 @@ const [error, setError] = useState("");
             }`}
           >
             <Bookmark className={`size-5 ${saved ? "fill-amber-600" : ""}`} />
-            {formatCompactNumber(post.saves_count)}
+            {formatCompactNumber(savesCount)}
           </button>
           {uid && (
             <Link

@@ -31,26 +31,35 @@ export async function uploadToCloudinary(file: File) {
 
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
-  const base64 = `data:${file.type};base64,${buffer.toString("base64")}`;
   const folder = getEnv("CLOUDINARY_FOLDER") || "ruangdekat";
 
-  const result = await getCloudinary().uploader.upload(base64, {
-    folder,
-    resource_type: "image",
-    overwrite: false,
-    transformation: [
-      { width: 1440, crop: "limit" },
-      { quality: "auto:good" },
-      { fetch_format: "auto" }
-    ]
-  });
+  return new Promise<any>((resolve, reject) => {
+    const uploadStream = getCloudinary().uploader.upload_stream(
+      {
+        folder,
+        resource_type: "image",
+        overwrite: false,
+        transformation: [
+          { width: 1440, crop: "limit" },
+          { quality: "auto:good" },
+          { fetch_format: "auto" }
+        ]
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        if (!result) return reject(new Error("Gagal mengunggah gambar ke Cloudinary."));
+        resolve({
+          url: result.secure_url,
+          publicId: result.public_id,
+          width: result.width,
+          height: result.height,
+          bytes: result.bytes,
+          format: result.format
+        });
+      }
+    );
 
-  return {
-    url: result.secure_url,
-    publicId: result.public_id,
-    width: result.width,
-    height: result.height,
-    bytes: result.bytes,
-    format: result.format
-  };
+    // Write buffer directly to stream
+    uploadStream.end(buffer);
+  });
 }

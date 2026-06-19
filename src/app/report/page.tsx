@@ -39,6 +39,10 @@ function ReportForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) { router.push("/login"); return; }
+    if (!postId && !commentId && !reportUserId) {
+      setError("Target laporan tidak valid atau tidak ditemukan.");
+      return;
+    }
     if (!reason && !customReason.trim()) {
       setError("Pilih atau tulis alasan.");
       return;
@@ -127,11 +131,17 @@ function ReportForm() {
               />
             </div>
 
+            {!postId && !commentId && !reportUserId && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                ⚠️ Halaman laporan tidak valid. Silakan laporkan langsung melalui tombol "Laporkan" pada postingan, komentar, atau profil yang bersangkutan.
+              </div>
+            )}
+
             {error && (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>
             )}
 
-            <Button type="submit" disabled={loading || (!reason && !customReason.trim())}>
+            <Button type="submit" disabled={loading || (!reason && !customReason.trim()) || (!postId && !commentId && !reportUserId)}>
               {loading && <Loader2 className="size-4 animate-spin" />}
               {loading ? "Mengirim..." : "Kirim Laporan"}
             </Button>

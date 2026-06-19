@@ -308,29 +308,7 @@ as $$
   select exists(select 1 from public.profiles where id = auth.uid() and is_admin = true);
 $$;
 
--- Helper: increment community member count
-create or replace function public.increment_community_member_count(community_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  update public.communities set member_count = member_count + 1 where id = community_id;
-end;
-$$;
 
--- Helper: decrement community member count
-create or replace function public.decrement_community_member_count(community_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  update public.communities set member_count = greatest(member_count - 1, 0) where id = community_id;
-end;
-$$;
 
 -- Helper: toggle post like
 create or replace function public.toggle_post_like(p_post_id uuid, p_user_id uuid)
@@ -387,29 +365,7 @@ begin
 end;
 $$;
 
--- Helper: increment event attendee count
-create or replace function public.increment_event_attendee_count(event_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  update public.events set attendee_count = attendee_count + 1 where id = event_id;
-end;
-$$;
 
--- Helper: decrement event attendee count
-create or replace function public.decrement_event_attendee_count(event_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  update public.events set attendee_count = greatest(attendee_count - 1, 0) where id = event_id;
-end;
-$$;
 
 create or replace function public.is_community_member(target_community_id uuid)
 returns boolean

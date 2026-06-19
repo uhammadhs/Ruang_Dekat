@@ -1,5 +1,5 @@
 import { PostDetailSkeleton } from "@/components/ui/skeleton";
 
-export default function EventLoading() {
+export default function EventDetailLoading() {
   return <PostDetailSkeleton />;
 }

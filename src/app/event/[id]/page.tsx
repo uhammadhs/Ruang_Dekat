@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase-server";
 import { getEventById } from "@/lib/supabase-queries";
 import { BottomNav } from "@/components/bottom-nav";
@@ -8,6 +9,22 @@ import { Button } from "@/components/ui/button";
 import { CalendarDays, MapPin, TicketCheck, UserRound } from "lucide-react";
 import { EventRSVP } from "./event-rsvp";
 import Link from "next/link";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const event = await getEventById(supabase, id);
+  if (!event) return { title: "Event Tidak Ditemukan — RuangDekat" };
+
+  return {
+    title: `${event.title} — RuangDekat`,
+    description: event.description || `Ikuti event ${event.title} di RuangDekat.`,
+    openGraph: {
+      title: event.title,
+      description: event.description || `Ikuti event ${event.title} di RuangDekat.`,
+    },
+  };
+}
 
 export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
