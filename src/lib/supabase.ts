@@ -4,16 +4,23 @@ import { getEnv } from "@/lib/utils";
 let browserClient: SupabaseClient | null = null;
 
 export function isSupabaseConfigured() {
-  return Boolean(getEnv("NEXT_PUBLIC_SUPABASE_URL") && getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"));
+  // Gunakan static access agar Turbopack bisa inline di client bundle
+  return Boolean(
+    (typeof process !== "undefined" ? process.env?.NEXT_PUBLIC_SUPABASE_URL : null) &&
+    (typeof process !== "undefined" ? process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY : null)
+  );
 }
 
 export function getSupabaseBrowserClient() {
-  const url = getEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const anonKey = getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  // Static access — Turbopack inline nilai NEXT_PUBLIC_* saat build
+  const url = typeof process !== "undefined" ? process.env?.NEXT_PUBLIC_SUPABASE_URL : undefined;
+  const anonKey = typeof process !== "undefined" ? process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY : undefined;
 
   if (!url || !anonKey) {
     throw new Error(
-      "Supabase belum dikonfigurasi. Untuk development: buat .env.local dari .env.example. Untuk Vercel: set NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY di Dashboard > Project Settings > Environment Variables, lalu redeploy."
+      "Supabase belum dikonfigurasi. Untuk development: buat .env.local dari .env.example. " +
+      "Untuk Vercel: set NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY di " +
+      "Dashboard > Project Settings > Environment Variables, lalu redeploy."
     );
   }
 
@@ -22,8 +29,8 @@ export function getSupabaseBrowserClient() {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true
-      }
+        detectSessionInUrl: true,
+      },
     });
   }
 
@@ -36,14 +43,15 @@ export function getSupabaseAdminClient() {
 
   if (!url || !serviceRole) {
     throw new Error(
-      "Supabase admin belum dikonfigurasi. Untuk Vercel: set SUPABASE_SERVICE_ROLE_KEY di Dashboard > Project Settings > Environment Variables."
+      "Supabase admin belum dikonfigurasi. " +
+      "Untuk Vercel: set SUPABASE_SERVICE_ROLE_KEY di Dashboard > Project Settings > Environment Variables."
     );
   }
 
   return createClient(url, serviceRole, {
     auth: {
       persistSession: false,
-      autoRefreshToken: false
-    }
+      autoRefreshToken: false,
+    },
   });
 }
