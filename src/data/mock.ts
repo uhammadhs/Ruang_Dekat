@@ -1,6 +1,15 @@
-import type { Community, EventItem, FeedPost } from "@/lib/types";
-
-export const feedPosts: FeedPost[] = [
+export const feedPosts: Array<{
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  author: { name: string; username: string; avatar: string; role: string; location: string; trustScore: number; badges: Array<{ label: string; tone: string }> };
+  location: string;
+  community: string;
+  createdAt: string;
+  stats: { likes: number; comments: number; saves: number };
+  proof: string;
+}> = [
   {
     id: "post-1",
     type: "work",
@@ -96,7 +105,15 @@ export const feedPosts: FeedPost[] = [
   }
 ];
 
-export const communities: Community[] = [
+export const communities: Array<{
+  id: string;
+  name: string;
+  category: string;
+  members: number;
+  location: string;
+  description: string;
+  activity: string;
+}> = [
   {
     id: "com-1",
     name: "UMKM Digital Magelang",
@@ -126,7 +143,14 @@ export const communities: Community[] = [
   }
 ];
 
-export const events: EventItem[] = [
+export const events: Array<{
+  id: string;
+  title: string;
+  date: string;
+  location: string;
+  attendees: number;
+  category: string;
+}> = [
   {
     id: "event-1",
     title: "Workshop Katalog Digital UMKM",

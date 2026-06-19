@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-
+import { SessionProvider } from "@/components/session-provider";
 
 export const metadata: Metadata = {
   title: "RuangDekat — Komunitas Lokal, Karya Nyata, Event, dan Peluang",
@@ -12,21 +12,25 @@ export const metadata: Metadata = {
   openGraph: {
     title: "RuangDekat",
     description: "Sosmed komunitas nyata untuk karya, event, UMKM, dan peluang lokal.",
-    type: "website"
-  }
+    type: "website",
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: "#f8fafc",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1
+  maximumScale: 1,
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id">
-      <body>{children}</body>
+      <body>
+        <SessionProvider>
+          {children}
+        </SessionProvider>
+      </body>
     </html>
   );
 }

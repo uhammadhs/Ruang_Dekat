@@ -172,12 +172,105 @@ create table if not exists public.moderation_logs (
   created_at timestamptz not null default now()
 );
 
+-- Missing tables: badge system, trust score, notifications, business pages, portfolios
+
+create table if not exists public.badges (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  description text,
+  icon_url text,
+  criteria text,
+  created_at timestamptz default now()
+);
+
+create table if not exists public.user_badges (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  badge_id uuid not null references public.badges(id) on delete cascade,
+  awarded_at timestamptz default now(),
+  unique (user_id, badge_id)
+);
+
+create table if not exists public.trust_score_log (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  old_score int not null,
+  new_score int not null,
+  reason text not null,
+  created_at timestamptz default now()
+);
+
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  type text not null,
+  actor_id uuid references public.profiles(id) on delete set null,
+  post_id uuid references public.posts(id) on delete cascade,
+  community_id uuid references public.communities(id) on delete cascade,
+  event_id uuid references public.events(id) on delete cascade,
+  message text not null,
+  is_read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.business_pages (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references public.profiles(id) on delete cascade,
+  business_name text not null,
+  slug text unique not null,
+  description text default '',
+  category text,
+  address text,
+  location_city text,
+  location_district text,
+  phone text,
+  whatsapp text,
+  website text,
+  logo_url text,
+  cover_url text,
+  is_verified boolean default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists public.services (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references public.business_pages(id) on delete cascade,
+  name text not null,
+  description text default '',
+  price_range text,
+  is_active boolean default true,
+  created_at timestamptz default now()
+);
+
+create table if not exists public.portfolios (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  title text not null,
+  description text default '',
+  media_url text,
+  media_type text default 'image',
+  tags text[] default '{}',
+  created_at timestamptz default now()
+);
+
 create index if not exists idx_posts_created_at on public.posts(created_at desc);
 create index if not exists idx_posts_location on public.posts(location_city, location_district);
 create index if not exists idx_posts_type on public.posts(type);
 create index if not exists idx_communities_location on public.communities(location_city, location_district);
 create index if not exists idx_events_starts_at on public.events(starts_at);
 create index if not exists idx_comments_post_id on public.comments(post_id, created_at);
+create index if not exists idx_profiles_username on public.profiles(username);
+create index if not exists idx_profiles_location on public.profiles(location_city);
+create index if not exists idx_communities_slug on public.communities(slug);
+create index if not exists idx_reactions_post_id on public.post_likes(post_id);
+create index if not exists idx_saves_user_id on public.post_saves(user_id);
+create index if not exists idx_follows_follower on public.follows(follower_id);
+create index if not exists idx_follows_following on public.follows(following_id);
+create index if not exists idx_notifications_user on public.notifications(user_id, is_read, created_at desc);
+create index if not exists idx_business_slug on public.business_pages(slug);
+create index if not exists idx_posts_user_id on public.posts(user_id, created_at desc);
+create index if not exists idx_posts_community on public.posts(community_id, created_at desc);
 
 create or replace function public.touch_updated_at()
 returns trigger
@@ -202,6 +295,85 @@ security definer
 set search_path = public
 as $$
   select exists(select 1 from public.profiles where id = auth.uid() and is_admin = true);
+$$;
+
+-- Helper: increment community member count
+create or replace function public.increment_community_member_count(community_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.communities set member_count = member_count + 1 where id = community_id;
+end;
+$$;
+
+-- Helper: decrement community member count
+create or replace function public.decrement_community_member_count(community_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.communities set member_count = greatest(member_count - 1, 0) where id = community_id;
+end;
+$$;
+
+-- Helper: toggle post like
+create or replace function public.toggle_post_like(p_post_id uuid, p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if exists(select 1 from public.post_likes where post_id = p_post_id and user_id = p_user_id) then
+    delete from public.post_likes where post_id = p_post_id and user_id = p_user_id;
+  else
+    insert into public.post_likes (post_id, user_id) values (p_post_id, p_user_id);
+  end if;
+end;
+$$;
+
+-- Helper: toggle post save
+create or replace function public.toggle_post_save(p_post_id uuid, p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if exists(select 1 from public.post_saves where post_id = p_post_id and user_id = p_user_id) then
+    delete from public.post_saves where post_id = p_post_id and user_id = p_user_id;
+  else
+    insert into public.post_saves (post_id, user_id) values (p_post_id, p_user_id);
+  end if;
+end;
+$$;
+
+-- Helper: create notification
+create or replace function public.create_notification(
+  p_user_id uuid,
+  p_type text,
+  p_actor_id uuid,
+  p_post_id uuid default null,
+  p_community_id uuid default null,
+  p_event_id uuid default null,
+  p_message text default ''
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_user_id <> p_actor_id then
+    insert into public.notifications (user_id, type, actor_id, post_id, community_id, event_id, message)
+    values (p_user_id, p_type, p_actor_id, p_post_id, p_community_id, p_event_id, p_message);
+  end if;
+end;
 $$;
 
 create or replace function public.is_community_member(target_community_id uuid)
@@ -230,6 +402,13 @@ alter table public.event_attendees enable row level security;
 alter table public.reports enable row level security;
 alter table public.ai_logs enable row level security;
 alter table public.moderation_logs enable row level security;
+alter table public.badges enable row level security;
+alter table public.user_badges enable row level security;
+alter table public.trust_score_log enable row level security;
+alter table public.notifications enable row level security;
+alter table public.business_pages enable row level security;
+alter table public.services enable row level security;
+alter table public.portfolios enable row level security;
 
 create policy "profiles are readable" on public.profiles for select using (true);
 create policy "users can insert own profile" on public.profiles for insert with check (auth.uid() = id);
@@ -292,3 +471,37 @@ create policy "users create own ai logs" on public.ai_logs for insert with check
 
 create policy "admins read moderation logs" on public.moderation_logs for select using (public.is_admin());
 create policy "admins create moderation logs" on public.moderation_logs for insert with check (public.is_admin());
+
+-- Badges: anyone can read, only admin can write
+create policy "badges readable" on public.badges for select using (true);
+create policy "badges admin insert" on public.badges for insert with check (public.is_admin());
+create policy "badges admin update" on public.badges for update using (public.is_admin()) with check (public.is_admin());
+
+-- User badges: users read own + public, admin all, system insert
+create policy "user_badges readable" on public.user_badges for select using (auth.uid() = user_id or public.is_admin());
+create policy "user_badges admin all" on public.user_badges for all using (public.is_admin()) with check (public.is_admin());
+create policy "user_badges system insert" on public.user_badges for insert with check (auth.role() = 'service_role');
+
+-- Trust score log: users read own, admin all, system insert
+create policy "trust_score_log readable own" on public.trust_score_log for select using (auth.uid() = user_id or public.is_admin());
+create policy "trust_score_log system insert" on public.trust_score_log for insert with check (auth.role() = 'service_role');
+
+-- Notifications: users read own, system insert, users update is_read
+create policy "notifications readable own" on public.notifications for select using (auth.uid() = user_id);
+create policy "notifications system insert" on public.notifications for insert with check (auth.role() = 'service_role');
+create policy "notifications update read status" on public.notifications for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Business pages: anyone can read, owner can insert/update
+create policy "business_pages readable" on public.business_pages for select using (true);
+create policy "business_pages owner insert" on public.business_pages for insert with check (auth.uid() = owner_id);
+create policy "business_pages owner update" on public.business_pages for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+
+-- Services: anyone can read, owner can insert/update
+create policy "services readable" on public.services for select using (true);
+create policy "services owner insert" on public.services for insert with check (exists(select 1 from public.business_pages b where b.id = business_id and b.owner_id = auth.uid()));
+create policy "services owner update" on public.services for update using (exists(select 1 from public.business_pages b where b.id = business_id and b.owner_id = auth.uid())) with check (exists(select 1 from public.business_pages b where b.id = business_id and b.owner_id = auth.uid()));
+
+-- Portfolios: anyone can read, owner can insert/update
+create policy "portfolios readable" on public.portfolios for select using (true);
+create policy "portfolios owner insert" on public.portfolios for insert with check (auth.uid() = user_id);
+create policy "portfolios owner update" on public.portfolios for update using (auth.uid() = user_id) with check (auth.uid() = user_id);

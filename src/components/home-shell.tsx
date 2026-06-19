@@ -2,45 +2,55 @@
 
 import { useMemo, useState } from "react";
 import { MapPin, Search, Sparkles } from "lucide-react";
-import { feedPosts } from "@/data/mock";
 import { FeedCard } from "@/components/feed-card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import type { PostType } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import type { PostWithDetails, PostType } from "@/lib/types";
+import Link from "next/link";
+import { useSession } from "@/components/session-provider";
 
 const tabs: Array<{ label: string; value: "all" | PostType }> = [
-  { label: "Sekitar", value: "all" },
+  { label: "Semua", value: "all" },
   { label: "Karya", value: "work" },
   { label: "Event", value: "event" },
   { label: "Peluang", value: "opportunity" },
-  { label: "Tanya", value: "question" }
+  { label: "Tanya", value: "question" },
 ];
 
-export function HomeShell() {
+export function HomeShell({
+  initialPosts,
+  userId: serverUserId,
+}: {
+  initialPosts: PostWithDetails[];
+  userId?: string;
+}) {
+  const { user } = useSession();
+  const uid = user?.id || serverUserId;
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["value"]>("all");
-  const [idea, setIdea] = useState("Saya punya produk lokal dan ingin promosi dengan gaya profesional.");
+  const [idea, setIdea] = useState("");
   const [aiOutput, setAiOutput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
   const filteredPosts = useMemo(() => {
-    if (activeTab === "all") return feedPosts;
-    return feedPosts.filter((post) => post.type === activeTab);
-  }, [activeTab]);
+    if (activeTab === "all") return initialPosts;
+    return initialPosts.filter((post) => post.type === activeTab);
+  }, [activeTab, initialPosts]);
 
   async function generateCaption() {
+    if (!idea.trim()) return;
     setIsGenerating(true);
     setAiOutput("");
     try {
-      const response = await fetch("/api/ai/assist", {
+      const res = await fetch("/api/ai/assist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "caption", input: idea })
+        body: JSON.stringify({ mode: "caption", input: idea }),
       });
-      const data = (await response.json()) as { ok: boolean; output?: string; error?: string };
+      const data = await res.json();
       setAiOutput(data.ok ? data.output || "" : data.error || "AI belum aktif.");
     } catch {
-      setAiOutput("AI belum aktif. Isi GEMINI_API_KEY untuk memakai Gemini 2.5 Flash.");
+      setAiOutput("AI belum aktif.");
     } finally {
       setIsGenerating(false);
     }
@@ -62,8 +72,8 @@ export function HomeShell() {
               Feed tidak hanya mengejar viral. Ranking mengutamakan kedekatan, manfaat, reputasi, dan bukti nyata.
             </p>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-              <Button>Mulai Jelajah</Button>
-              <Button variant="secondary">Lihat Komunitas</Button>
+              <Link href="/create"><Button>Mulai Jelajah</Button></Link>
+              <Link href="/communities"><Button variant="secondary">Lihat Komunitas</Button></Link>
             </div>
           </div>
         </div>
@@ -76,31 +86,33 @@ export function HomeShell() {
         </div>
       </div>
 
-      <Card>
-        <div className="flex items-center gap-2">
-          <Sparkles className="size-5 text-blue-600" />
-          <div>
-            <h2 className="font-black text-slate-950">AI Caption Assistant</h2>
-            <p className="text-xs text-slate-500">Pakai Gemini 2.5 Flash jika env sudah diisi.</p>
+      {user && (
+        <Card>
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-5 text-blue-600" />
+            <div>
+              <h2 className="font-black text-slate-950">AI Caption Assistant</h2>
+              <p className="text-xs text-slate-500">Pakai Gemini 2.5 Flash.</p>
+            </div>
           </div>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
-          <textarea
-            value={idea}
-            onChange={(event) => setIdea(event.target.value)}
-            className="focus-ring min-h-24 rounded-3xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700 outline-none"
-            placeholder="Tulis ide posting..."
-          />
-          <Button onClick={generateCaption} disabled={isGenerating} className="md:self-end">
-            {isGenerating ? "Membuat..." : "Buat Caption"}
-          </Button>
-        </div>
-        {aiOutput ? (
-          <div className="mt-3 rounded-3xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
-            {aiOutput}
+          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+            <textarea
+              value={idea}
+              onChange={(e) => setIdea(e.target.value)}
+              className="focus-ring min-h-24 rounded-3xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700 outline-none"
+              placeholder="Tulis ide posting..."
+            />
+            <Button onClick={generateCaption} disabled={isGenerating || !idea.trim()} className="md:self-end">
+              {isGenerating ? "Membuat..." : "Buat Caption"}
+            </Button>
           </div>
-        ) : null}
-      </Card>
+          {aiOutput && (
+            <div className="mt-3 rounded-3xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
+              {aiOutput}
+            </div>
+          )}
+        </Card>
+      )}
 
       <div className="no-scrollbar flex gap-2 overflow-x-auto py-1">
         {tabs.map((tab) => (
@@ -119,9 +131,21 @@ export function HomeShell() {
         ))}
       </div>
 
-      <div className="space-y-4">
-        {filteredPosts.map((post) => <FeedCard key={post.id} post={post} />)}
-      </div>
+      {filteredPosts.length === 0 ? (
+        <Card>
+          <p className="text-center text-sm text-slate-500">
+            {activeTab === "all"
+              ? "Belum ada posting. Jadilah yang pertama!"
+              : `Belum ada posting dengan kategori ${activeTab}.`}
+          </p>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {filteredPosts.map((post) => (
+            <FeedCard key={post.id} post={post} userId={uid} />
+          ))}
+        </div>
+      )}
     </main>
   );
 }
