@@ -24,12 +24,14 @@ export default function RegisterPage() {
     setError("");
     setLoading(true);
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
     const supabase = getSupabaseBrowserClient();
-    const { error: authError } = await supabase.auth.signUp({
+    const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { display_name: displayName },
+        emailRedirectTo: `${appUrl}/auth/callback`,
       },
     });
 
@@ -39,6 +41,12 @@ export default function RegisterPage() {
       } else {
         setError(authError.message);
       }
+      setLoading(false);
+      return;
+    }
+
+    if (!data.user || data.user.identities?.length === 0) {
+      setError("Email sudah terdaftar. Silakan login atau reset password.");
       setLoading(false);
       return;
     }

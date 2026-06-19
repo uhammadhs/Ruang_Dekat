@@ -12,11 +12,14 @@ function getSafeRedirect(origin: string, next: string): string {
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const type = searchParams.get("type");
   const next = searchParams.get("next") ?? "/";
   const safeNext = getSafeRedirect(origin, next);
 
   if (code) {
-    const response = NextResponse.redirect(`${origin}${safeNext}`);
+    const response = NextResponse.redirect(
+      type === "recovery" ? `${origin}/auth/update-password` : `${origin}${safeNext}`
+    );
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

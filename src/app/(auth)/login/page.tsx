@@ -24,26 +24,52 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState("");
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setUnconfirmedEmail("");
     setLoading(true);
 
     const supabase = getSupabaseBrowserClient();
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
     if (authError) {
-      setError(authError.message === "Invalid login credentials"
-        ? "Email atau password salah."
-        : authError.message
-      );
+      if (authError.message === "Email not confirmed" || authError.message?.includes("not confirmed")) {
+        setUnconfirmedEmail(email);
+        setError("Email belum dikonfirmasi. Silakan cek inbox/spam folder.");
+      } else if (authError.message === "Invalid login credentials") {
+        setError("Email atau password salah.");
+      } else {
+        setError(authError.message);
+      }
       setLoading(false);
       return;
     }
 
     router.push(redirect);
     router.refresh();
+  }
+
+  async function handleResendConfirm() {
+    if (!unconfirmedEmail) return;
+    setLoading(true);
+    setError("");
+
+    const supabase = getSupabaseBrowserClient();
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email: unconfirmedEmail,
+    });
+
+    if (resendError) {
+      setError(resendError.message);
+    } else {
+      setUnconfirmedEmail("");
+      setError("");
+    }
+    setLoading(false);
   }
 
   return (
@@ -102,6 +128,18 @@ function LoginForm() {
             <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
               {error}
             </div>
+          )}
+
+          {unconfirmedEmail && (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={loading}
+              onClick={handleResendConfirm}
+              className="w-full"
+            >
+              {loading ? "Mengirim..." : "Kirim Ulang Email Konfirmasi"}
+            </Button>
           )}
 
           <Button type="submit" disabled={loading} className="w-full">
