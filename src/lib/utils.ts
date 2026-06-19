@@ -10,7 +10,7 @@ export function formatCompactNumber(value: number) {
 
 export function getEnv(name: string) {
   const value = process.env[name];
-  if (!value || value.includes("your-")) return null;
+  if (!value || value.trim() === "") return null;
   return value;
 }
 

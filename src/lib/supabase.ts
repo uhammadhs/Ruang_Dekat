@@ -12,7 +12,9 @@ export function getSupabaseBrowserClient() {
   const anonKey = getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
   if (!url || !anonKey) {
-    throw new Error("Supabase belum dikonfigurasi. Isi NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+    throw new Error(
+      "Supabase belum dikonfigurasi. Buat file .env.local (copy dari .env.example) dan isi NEXT_PUBLIC_SUPABASE_URL serta NEXT_PUBLIC_SUPABASE_ANON_KEY."
+    );
   }
 
   if (!browserClient) {
@@ -33,7 +35,9 @@ export function getSupabaseAdminClient() {
   const serviceRole = getEnv("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!url || !serviceRole) {
-    throw new Error("Supabase admin belum dikonfigurasi. Isi SUPABASE_SERVICE_ROLE_KEY di server env.");
+    throw new Error(
+      "Supabase admin belum dikonfigurasi. Buat file .env.local (copy dari .env.example) dan isi SUPABASE_SERVICE_ROLE_KEY."
+    );
   }
 
   return createClient(url, serviceRole, {
