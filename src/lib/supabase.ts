@@ -13,7 +13,7 @@ export function getSupabaseBrowserClient() {
 
   if (!url || !anonKey) {
     throw new Error(
-      "Supabase belum dikonfigurasi. Buat file .env.local (copy dari .env.example) dan isi NEXT_PUBLIC_SUPABASE_URL serta NEXT_PUBLIC_SUPABASE_ANON_KEY."
+      "Supabase belum dikonfigurasi. Untuk development: buat .env.local dari .env.example. Untuk Vercel: set NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY di Dashboard > Project Settings > Environment Variables, lalu redeploy."
     );
   }
 
@@ -36,7 +36,7 @@ export function getSupabaseAdminClient() {
 
   if (!url || !serviceRole) {
     throw new Error(
-      "Supabase admin belum dikonfigurasi. Buat file .env.local (copy dari .env.example) dan isi SUPABASE_SERVICE_ROLE_KEY."
+      "Supabase admin belum dikonfigurasi. Untuk Vercel: set SUPABASE_SERVICE_ROLE_KEY di Dashboard > Project Settings > Environment Variables."
     );
   }
 
