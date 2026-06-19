@@ -36,7 +36,7 @@ create table if not exists public.communities (
   location_city text,
   location_district text,
   visibility visibility_type not null default 'public',
-  member_count int not null default 1,
+  member_count int not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -545,3 +545,99 @@ create policy "services owner update" on public.services for update using (exist
 create policy "portfolios readable" on public.portfolios for select using (true);
 create policy "portfolios owner insert" on public.portfolios for insert with check (auth.uid() = user_id);
 create policy "portfolios owner update" on public.portfolios for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ──────── Safety & Consistency Triggers ────────
+
+-- 1. Protect profiles system fields from self-escalation
+create or replace function public.protect_profile_system_fields()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (
+    select 1 from public.profiles 
+    where id = auth.uid() and is_admin = true
+  ) then
+    new.is_admin := old.is_admin;
+    new.is_verified := old.is_verified;
+    new.trust_score := old.trust_score;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger on_profile_updated_protect_fields
+  before update on public.profiles
+  for each row execute function public.protect_profile_system_fields();
+
+-- 2. Automate community member count
+create or replace function public.maintain_community_member_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (TG_OP = 'INSERT') then
+    update public.communities
+    set member_count = member_count + 1
+    where id = new.community_id;
+    return new;
+  elsif (TG_OP = 'DELETE') then
+    update public.communities
+    set member_count = greatest(member_count - 1, 0)
+    where id = old.community_id;
+    return old;
+  end if;
+  return null;
+end;
+$$;
+
+create trigger on_community_member_change
+  after insert or delete on public.community_members
+  for each row execute function public.maintain_community_member_count();
+
+-- 3. Automate event attendee count
+create or replace function public.maintain_event_attendee_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (TG_OP = 'INSERT') then
+    if (new.status != 'cancelled') then
+      update public.events
+      set attendee_count = attendee_count + 1
+      where id = new.event_id;
+    end if;
+    return new;
+  elsif (TG_OP = 'UPDATE') then
+    if (old.status = 'cancelled' and new.status != 'cancelled') then
+      update public.events
+      set attendee_count = attendee_count + 1
+      where id = new.event_id;
+    elsif (old.status != 'cancelled' and new.status = 'cancelled') then
+      update public.events
+      set attendee_count = greatest(attendee_count - 1, 0)
+      where id = new.event_id;
+    end if;
+    return new;
+  elsif (TG_OP = 'DELETE') then
+    if (old.status != 'cancelled') then
+      update public.events
+      set attendee_count = greatest(attendee_count - 1, 0)
+      where id = old.event_id;
+    end if;
+    return old;
+  end if;
+  return null;
+end;
+$$;
+
+create trigger on_event_attendee_change
+  after insert or update or delete on public.event_attendees
+  for each row execute function public.maintain_event_attendee_count();
+

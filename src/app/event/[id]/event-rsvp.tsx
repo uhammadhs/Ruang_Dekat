@@ -29,27 +29,14 @@ export function EventRSVP({ eventId, initialStatus }: { eventId: string; initial
       if (newStatus === status) {
         const { error: delErr } = await supabase.from("event_attendees").delete().eq("event_id", eventId).eq("user_id", user.id);
         if (delErr) throw delErr;
-        await supabase.rpc("decrement_event_attendee_count", { event_id: eventId });
         setStatus(null);
       } else {
-        const { data: existing } = await supabase
-          .from("event_attendees")
-          .select("*")
-          .eq("event_id", eventId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (existing) {
-          if (status === null) {
-            await supabase.rpc("increment_event_attendee_count", { event_id: eventId });
-          }
-          const { error: updErr } = await supabase.from("event_attendees").update({ status: newStatus }).eq("event_id", eventId).eq("user_id", user.id);
-          if (updErr) throw updErr;
-        } else {
-          const { error: insErr } = await supabase.from("event_attendees").insert({ event_id: eventId, user_id: user.id, status: newStatus });
-          if (insErr) throw insErr;
-          await supabase.rpc("increment_event_attendee_count", { event_id: eventId });
-        }
+        const { error: upsertErr } = await supabase.from("event_attendees").upsert({
+          event_id: eventId,
+          user_id: user.id,
+          status: newStatus,
+        });
+        if (upsertErr) throw upsertErr;
         setStatus(newStatus);
       }
       router.refresh();

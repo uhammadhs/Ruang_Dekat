@@ -14,11 +14,29 @@ export default async function NotificationsPage() {
   if (user) {
     const { data } = await supabase
       .from("notifications")
-      .select("id, title, body, is_read, created_at")
+      .select("id, type, message, is_read, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(20);
-    notifications = data || [];
+
+    if (data) {
+      notifications = data.map((n) => {
+        let title = "Notifikasi";
+        if (n.type === "like") title = "Suka Baru";
+        else if (n.type === "comment") title = "Komentar Baru";
+        else if (n.type === "follow") title = "Pengikut Baru";
+        else if (n.type === "join") title = "Gabung Komunitas";
+        else if (n.type === "event") title = "Event Baru";
+
+        return {
+          id: n.id,
+          title,
+          body: n.message,
+          is_read: n.is_read,
+          created_at: n.created_at,
+        };
+      });
+    }
   }
 
   return (

@@ -17,59 +17,31 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-    const supabase = getSupabaseBrowserClient();
-    const { data, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { display_name: displayName },
-        emailRedirectTo: `${appUrl}/auth/callback`,
-      },
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, displayName }),
     });
 
-    if (authError) {
-      if (authError.message?.includes("already registered") || authError.message === "User already registered") {
-        setError("Email sudah terdaftar.");
-      } else {
-        setError(authError.message);
-      }
+    const json = await res.json();
+
+    if (!json.ok) {
+      setError(json.error || "Registrasi gagal.");
       setLoading(false);
       return;
     }
 
-    if (!data.user || data.user.identities?.length === 0) {
-      setError("Email sudah terdaftar. Silakan login atau reset password.");
-      setLoading(false);
-      return;
-    }
+    const supabase = getSupabaseBrowserClient();
+    await supabase.auth.signInWithPassword({ email, password });
 
-    setSuccess(true);
-    setLoading(false);
-  }
-
-  if (success) {
-    return (
-      <div className="flex min-h-dvh flex-col items-center justify-center px-4">
-        <div className="w-full max-w-sm space-y-6 text-center">
-          <div className="size-14 rounded-2xl bg-emerald-100 text-2xl grid place-items-center mx-auto">✓</div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-950">Pendaftaran Berhasil</h1>
-          <p className="text-sm text-slate-500">
-            Silakan cek email <strong className="text-slate-700">{email}</strong> untuk konfirmasi akun kamu.
-          </p>
-          <Link href="/login?registered=true">
-            <Button className="w-full">Masuk</Button>
-          </Link>
-        </div>
-      </div>
-    );
+    router.push("/");
+    router.refresh();
   }
 
   return (
@@ -141,7 +113,7 @@ export default function RegisterPage() {
 
           <Button type="submit" disabled={loading} className="w-full">
             {loading && <Loader2 className="size-4 animate-spin" />}
-            {loading ? "Memproses..." : "Daftar"}
+            {loading ? "Mendaftarkan..." : "Daftar"}
           </Button>
         </form>
 

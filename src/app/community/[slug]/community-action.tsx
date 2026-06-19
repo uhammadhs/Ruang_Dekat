@@ -29,7 +29,6 @@ export function CommunityAction({ communityId, isMember: initial }: { communityI
       const supabase = getSupabaseBrowserClient();
       const { error: err } = await supabase.from("community_members").insert({ community_id: communityId, user_id: user.id });
       if (err) throw err;
-      await supabase.rpc("increment_community_member_count", { community_id: communityId });
       setIsMember(true);
       router.refresh();
     } catch (e) {
@@ -46,7 +45,6 @@ export function CommunityAction({ communityId, isMember: initial }: { communityI
       const supabase = getSupabaseBrowserClient();
       const { error: err } = await supabase.from("community_members").delete().eq("community_id", communityId).eq("user_id", user.id);
       if (err) throw err;
-      await supabase.rpc("decrement_community_member_count", { community_id: communityId });
       setIsMember(false);
       router.refresh();
     } catch (e) {
